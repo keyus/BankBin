@@ -11,12 +11,16 @@ const ALIPAYAPI = (cardNo)=>{
     return `https://ccdcapi.alipay.com/validateAndCacheCardInfo.json?cardNo=${cardNo}&cardBinCheck=true`;
 };
 
+const que = [];     //队列
+
 export default class BankBin {
     constructor(cardNo,options){
+        //实例ID
+        this.instanceId = Number(Math.random().toString().substr(3,length) + Date.now()).toString(36);
         this.cardNo = cardNo;
         this.options  = {
-            async : false,          //是否开启API检测
-            timeout: 10000,         //api调用超时
+            async : false,           //是否开启API检测
+            timeout: 10000,          //api调用超时
         };
         this.validated = false;
         if(options && options !== null && typeof options === 'object' && !Array.isArray(options)){
@@ -24,9 +28,18 @@ export default class BankBin {
                 this.options[key] = options[key];
             });
         }
+        if(que.length){
+            que[0].xhr && que[0].xhr.abort();
+            que[0].reject({});
+        }
         return new Promise((resolve, reject) => {
             this.resolve = resolve ;
             this.reject = reject ;
+            que.unshift({
+                resolve,
+                reject,
+                instanceId : this.instanceId,
+            });
             this.init();
         });
     }
@@ -86,6 +99,8 @@ export default class BankBin {
         const xhr = new XMLHttpRequest();
         const method = 'GET';
         const url = ALIPAYAPI(this.cardNo);
+        const instance = que.find(it=>it.instanceId ===this.instanceId );
+        instance.xhr = xhr;
         xhr.timeout = this.options.timeout;
         xhr.open(method, url);
         xhr.onreadystatechange = ()=> {
@@ -96,23 +111,32 @@ export default class BankBin {
                         const res = JSON.parse(responseText);
                         if(res.validated) {
                             const data = {
-                                bankName : '',
+                                bankName : CARDTYPE[res.cardType],
                                 bankCode : res.bank,
                                 cardType : res.cardType,
-                                cardTypeName : ''
+                                cardTypeName : CARDTYPE[res.cardType]
                             };
-                            this.validated = true;
+                            this.validated = res.validated;
                             this.resolve({
                                 validated : this.validated,
                                 msg : '成功',
                                 cardNo : this.cardNo,
+                                apiStatus : true,
                                 data
+                            })
+                        }else{
+                            this.validated = res.validated;
+                            this.reject({
+                                validated : this.validated,
+                                apiStatus : false,
+                                msg : '验证失败'
                             })
                         }
                     }catch (e) {
                         this.reject({
                             validated : this.validated,
-                            msg : e
+                            apiStatus : false,
+                            msg : e,
                         })
                     }
                 }else{
@@ -120,17 +144,19 @@ export default class BankBin {
                         validated : this.validated,
                         cardNo : this.cardNo,
                         status : xhr.status,
+                        apiStatus : false,
                         msg : '网络请求错误',
                     })
                 }
             }
         };
         xhr.ontimeout = ()=>{
-            this.status = 0;
+            this.validated = false;
             this.reject({
                 validated : this.validated,
                 cardNo : this.cardNo,
                 timeout : true,
+                apiStatus : false,
                 msg : '超时',
             })
         };
