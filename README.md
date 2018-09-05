@@ -10,6 +10,25 @@
 # 安装
 ## npm install bankbin
 
+#返回结果
+
+### validated 为true时，验证成功
+```js
+
+{
+    cardNo:"6217003810020275930"
+    data: {
+        cardType: "DC",
+        cardTypeName: "储蓄卡",
+        bankName: "中国建设银行",
+        bankCode: "CCB"
+    }
+    validated:true
+    msg:"匹配成功"
+}
+
+```
+
 
 # 使用方式 new BankBin(cardNo,options)
 ### 成功获取银行卡信息后，返回一个对象.

@@ -1,6 +1,6 @@
 {
   "name": "bankbin",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "按银行卡卡号快速检测该银行卡类型，银行名称，银行代码",
   "main": "index.js",
   "scripts": {
